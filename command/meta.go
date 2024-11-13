@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/hashicorp/cap/util"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
@@ -436,6 +437,7 @@ type UIRoute struct {
 type UIHintContext struct {
 	Command    string
 	PathParams map[string]string
+	OpenURL    bool
 }
 
 const (
@@ -470,6 +472,10 @@ var CommandUIRoutes = map[string]UIRoute{
 	"job status single": {
 		Path:        "/jobs/:jobID",
 		Description: "View job details and metrics",
+	},
+	"job run": {
+		Path:        "/jobs/:jobID",
+		Description: "View this job in the Web UI",
 	},
 	"alloc status": {
 		Path:        "/allocations/:allocID",
@@ -528,6 +534,12 @@ func (m *Meta) showUIPath(ctx UIHintContext) (string, error) {
 	url, err := m.buildUIPath(route, ctx.PathParams)
 	if err != nil {
 		return "", err
+	}
+
+	if ctx.OpenURL {
+		if err := util.OpenURL(url); err != nil {
+			m.Ui.Warn(fmt.Sprintf("Failed to open browser: %v", err))
+		}
 	}
 
 	return m.formatUIHint(url, route.Description), nil

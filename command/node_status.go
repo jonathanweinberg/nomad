@@ -42,6 +42,7 @@ type NodeStatusCommand struct {
 	pageToken   string
 	filter      string
 	tmpl        string
+	openURL     bool
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -91,6 +92,9 @@ Node Status Options:
   -filter
     Specifies an expression used to filter query results.
 
+  -ui
+    Open the node status page in the browser.
+
   -os
     Display operating system name.
 
@@ -125,6 +129,7 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-os":         complete.PredictAnything,
 			"-quiet":      complete.PredictAnything,
 			"-verbose":    complete.PredictNothing,
+			"-ui":         complete.PredictNothing,
 		})
 }
 
@@ -161,6 +166,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.StringVar(&c.filter, "filter", "", "")
 	flags.IntVar(&c.perPage, "per-page", 0, "")
 	flags.StringVar(&c.pageToken, "page-token", "", "")
+	flags.BoolVar(&c.openURL, "ui", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -309,6 +315,7 @@ Results have been paginated. To get the next page run:
 
 		hint, _ := c.Meta.showUIPath(UIHintContext{
 			Command: c.Name(),
+			OpenURL: c.openURL,
 		})
 		if hint != "" {
 			c.Ui.Output(hint)
@@ -512,6 +519,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			PathParams: map[string]string{
 				"nodeID": node.ID,
 			},
+			OpenURL: c.openURL,
 		})
 		if hint != "" {
 			c.Ui.Output(hint)
@@ -609,6 +617,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		PathParams: map[string]string{
 			"nodeID": node.ID,
 		},
+		OpenURL: c.openURL,
 	})
 	if hint != "" {
 		c.Ui.Output(hint)
