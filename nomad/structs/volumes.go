@@ -91,12 +91,14 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 	return n
 }
 
-// VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
+// VolumeRequest is a representation of a storage volume that a TaskGroup wishes
+// to use.
 type VolumeRequest struct {
 	Name           string
 	Type           string
 	Source         string
 	ReadOnly       bool
+	Sticky         bool
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	MountOptions   *CSIMountOptions
@@ -116,6 +118,8 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 		return false
 	case v.ReadOnly != o.ReadOnly:
 		return false
+	case v.Sticky != o.Sticky:
+		return false
 	case v.AccessMode != o.AccessMode:
 		return false
 	case v.AttachmentMode != o.AttachmentMode:
@@ -129,8 +133,7 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 }
 
 func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) error {
-	if !(v.Type == VolumeTypeHost ||
-		v.Type == VolumeTypeCSI) {
+	if !(v.Type == VolumeTypeHost || v.Type == VolumeTypeCSI) {
 		return fmt.Errorf("volume has unrecognized type %s", v.Type)
 	}
 
@@ -165,6 +168,9 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		}
 
 	case VolumeTypeCSI:
+		if v.Sticky {
+			addErr("CSI volumes cannot be set to sticky")
+		}
 
 		switch v.AttachmentMode {
 		case CSIVolumeAttachmentModeUnknown:
@@ -247,6 +253,7 @@ type VolumeMount struct {
 	Volume          string
 	Destination     string
 	ReadOnly        bool
+	Sticky          bool
 	PropagationMode string
 	SELinuxLabel    string
 }
@@ -266,6 +273,8 @@ func (v *VolumeMount) Equal(o *VolumeMount) bool {
 	case v.Destination != o.Destination:
 		return false
 	case v.ReadOnly != o.ReadOnly:
+		return false
+	case v.Sticky != o.Sticky:
 		return false
 	case v.PropagationMode != o.PropagationMode:
 		return false
