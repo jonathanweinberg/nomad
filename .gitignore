@@ -9,6 +9,7 @@ Thumbs.db
 .idea
 .fleet
 
+
 # Folders
 _obj
 _test
@@ -137,3 +138,7 @@ tools/missing/missing
 
 # allow security scanner file
 !scan.hcl
+
+# generated variables for upgrade tests
+enos.vars.hcl
+enos/modules/*/*.tfvars
