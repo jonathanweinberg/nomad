@@ -168,10 +168,6 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		}
 
 	case VolumeTypeCSI:
-		if v.Sticky {
-			addErr("CSI volumes cannot be set to sticky")
-		}
-
 		switch v.AttachmentMode {
 		case CSIVolumeAttachmentModeUnknown:
 			addErr("CSI volumes must have an attachment mode")
