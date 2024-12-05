@@ -142,3 +142,6 @@ tools/missing/missing
 # generated variables for upgrade tests
 enos.vars.hcl
 enos/modules/*/*.tfvars
+
+# local license files
+*.hclic
