@@ -31,6 +31,7 @@ type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
 	Path     string `hcl:"path"`
 	ReadOnly bool   `hcl:"read_only"`
+	VolumeID string // FIXME: this is an ugly temporary hack
 }
 
 func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {

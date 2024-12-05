@@ -15,14 +15,12 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (
 	FilterConstraintHostVolumes                    = "missing compatible host volumes"
-	FilterConstraintHostVolumesLookupFailed        = "host volume lookup failed"
 	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
@@ -177,33 +175,32 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*str
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
-	ok, failure := h.hasVolumes(candidate)
-	if ok {
+	if h.hasVolumes(candidate) {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, failure)
+	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
 	return false
 }
 
-func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	rLen := len(h.volumes)
 	hLen := len(n.HostVolumes)
 
 	// Fast path: Requested no volumes. No need to check further.
 	if rLen == 0 {
-		return true, ""
+		return true
 	}
 
 	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
 	if rLen > hLen {
-		return false, FilterConstraintHostVolumes
+		return false
 	}
 
 	for source, requests := range h.volumes {
 		nodeVolume, ok := n.HostVolumes[source]
 		if !ok {
-			return false, FilterConstraintHostVolumes
+			return false
 		}
 
 		// If the volume supports being mounted as ReadWrite, we do not need to
@@ -212,36 +209,34 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 			continue
 		}
 
-		ws := memdb.NewWatchSet()
 		// The Volume can only be mounted ReadOnly, validate that no requests for
 		// it are ReadWrite.
 		for _, req := range requests {
 			if !req.ReadOnly {
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 
 			// Sticky volumes must always be paired with the right allocation;
 			// validate that this node has the right volume ID present.
 			if req.Sticky {
-				volumes, err := h.ctx.State().HostVolumesByNodeID(ws, n.ID, state.SortDefault)
-				if err != nil {
-					return false, FilterConstraintHostVolumesLookupFailed
+				if nodeVolume.VolumeID == "" {
+					return false
 				}
-				for raw := volumes.Next(); raw != nil; raw = volumes.Next() {
-					vol := raw.(*structs.HostVolume)
-					if vol.Name != nodeVolume.Name {
-						continue
+
+				allocs, err := h.ctx.ProposedAllocs(n.ID)
+				if err != nil {
+					return false
+				}
+				for _, a := range allocs {
+					if slices.Contains(a.VolumeIDs, nodeVolume.VolumeID) {
+						return true
 					}
-					allocs, _ := h.ctx.ProposedAllocs(n.ID)
-					return slices.ContainsFunc(allocs, func(a *structs.Allocation) bool {
-						return !slices.Contains(a.VolumeIDs, vol.ID)
-					}), FilterConstraintHostVolumes
 				}
 			}
 		}
 	}
 
-	return true, ""
+	return true
 }
 
 type CSIVolumeChecker struct {
